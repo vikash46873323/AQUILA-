@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AQUILA</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+body{background:#0a0a14;color:#fff;font-family:sans-serif;padding-bottom:80px;margin:0}
+.top{padding:14px;background:#121222;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #222}
+.card{margin:12px;background:#16162e;border:1px solid #2a2a4a;border-radius:16px;padding:16px}
+.btn{width:100%;padding:14px;border:none;border-radius:12px;font-weight:800;margin-top:10px}
+.btn-blue{background:#00e5ff;color:#000}
+.tap{width:120px;height:120px;border-radius:50%;margin:20px auto;background:#00e5ff22;border:3px solid #00e5ff;display:flex;align-items:center;justify-content:center;font-size:50px}
+</style>
+</head>
+<body>
+<div class="top"><b>🦅 AQUILA</b><div id="ton-connect"></div></div>
+<div class="card"><h2>AQUILA MINING LIVE</h2><p>Owner: UQBjOB...6YQ</p><p>Balance: <b id="bal">0</b> | Power: <b id="power">25</b></p><p style="color:#00e5ff;font-size:12px" id="status">Connecting...</p></div>
+<div class="card" style="text-align:center"><div class="tap" onclick="tapMine()">🦅</div><p>Tap to Earn</p><button class="btn btn-blue" onclick="tapMine()">MINE</button></div>
+<script>
+const supabaseClient = supabase.createClient("https://dvrtmrdydbltjredccbo.supabase.co","sb_publishable_xBjVwAjF7zacpthITMloCQ_OoNndY3z");
+let bal=0,pow=25;
+document.getElementById('status').innerText="✅ Supabase Connected";
+function tapMine(){bal+=1.25;document.getElementById('bal').innerText=Math.floor(bal);}
+setInterval(()=>{bal+=pow/100;document.getElementById('bal').innerText=Math.floor(bal);},1000);
+const tonUI=new TON_CONNECT_UI.TonConnectUI({manifestUrl:'https://ton-connect.github.io/demo-dapp-with-react/tonconnect-manifest.json',buttonRootId:'ton-connect'});
+</script>
+</body>
+</html>
