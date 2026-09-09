@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AQUILA TON</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:sans-serif}
+body{background:#0a0a14;color:#fff;padding-bottom:80px}
+.top{padding:12px;display:flex;justify-content:space-between;background:#121222;position:sticky;top:0;z-index:100}
+.card{margin:12px;background:#16162e;border:1px solid #2a2a4a;border-radius:16px;padding:14px}
+.btn{width:100%;padding:14px;border:none;border-radius:12px;font-weight:800;margin-top:8px;cursor:pointer}
+.btn-blue{background:#00e5ff;color:#000}
+.btn-dark{background:#2a2a4a;color:#fff}
+.tap-btn{width:120px;height:120px;border-radius:50%;background:radial-gradient(circle,#00e5ff,#0066ff);margin:16px auto;display:flex;align-items:center;justify-content:center;font-size:50px;cursor:pointer}
+.tabs{position:fixed;bottom:0;left:0;right:0;background:#121222;display:flex;border-top:1px solid #222;padding:6px 0}
+.tab{flex:1;text-align:center;font-size:11px;opacity:0.5;cursor:pointer}
+.tab.active{opacity:1;color:#00e5ff}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.owner{font-size:9px;background:#0e0e1a;border:1px dashed #00e5ff55;padding:6px;border-radius:6px;word-break:break-all;color:#888}
+input{width:100%;padding:10px;background:#0e0e1a;border:1px solid #333;border-radius:8px;color:#fff;margin:6px 0}
+</style>
+</head>
+<body>
+<div class="top"><b>🦅 AQUILA</b><div id="ton-connect"></div></div>
+
+<div id="p-home">
+<div class="card">
+<h2>AQUILA MINING</h2>
+<div class="owner">Owner: UQBjOBdY_Ema5JWD8k2s6PKwfno9ddEAc4c9D8_VNQdgh6YQ — All Fees Here</div>
+<p style="margin-top:8px">Balance: <b id="bal">0</b> | Power: <b id="power">25</b></p>
+<p style="font-size:11px;color:#00e5ff" id="saveStatus">Connecting Supabase...</p>
+</div>
+<div class="card" style="text-align:center">
+<div class="tap-btn" onclick="mineTap()">🦅</div>
+<p>Tap = <span id="perTap">1.25</span> coin | Auto <span id="autoRate">0.25</span>/sec</p>
+<button class="btn btn-dark" onclick="boost(0.02)">0.02 TON = +50 Power</button>
+<button class="btn btn-dark" onclick="boost(0.05)">0.05 TON = +150 Power</button>
+</div>
+</div>
+
+<div id="p-market" style="display:none">
+<div class="card">
+<b>Market - Fee 0.05 TON to Owner</b>
+<div class="grid2" style="margin-top:10px">
+<div style="background:#1f1f3a;padding:8px;border-radius:12px"><b>AQUILA #01 - 0.5 TON</b><button class="btn btn-blue" onclick="buyNFT(0.5,'AQUILA #01')">Buy</button></div>
+<div style="background:#1f1f3a;padding:8px;border-radius:12px"><b>NEON #02 - 0.8 TON</b><button class="btn btn-blue" onclick="buyNFT(0.8,'NEON #02')">Buy</button></div>
+</div>
+</div>
+</div>
+
+<div id="p-create" style="display:none">
+<div class="card">
+<h3>Create NFT - 0.08 TON Fee</h3>
+<input id="nftName" placeholder="Name">
+<input id="nftPrice" placeholder="Price TON" type="number">
+<button class="btn btn-blue" onclick="createNFT()">Create & List</button>
+</div>
+</div>
+
+<div id="p-ref" style="display:none">
+<div class="card">
+<h3>Referral 10% TON</h3>
+<input id="refLink" readonly>
+<button class="btn btn-blue" onclick="navigator.clipboard.writeText(document.getElementById('refLink').value);alert('Copied')">Copy</button>
+</div>
+</div>
+
+<div class="tabs">
+<div class="tab active" id="t-home" onclick="openPage('home')">Mining</div>
+<div class="tab" id="t-market" onclick="openPage('market')">Market</div>
+<div class="tab" id="t-create" onclick="openPage('create')">Create</div>
+<div class="tab" id="t-ref" onclick="openPage('ref')">Referral</div>
+</div>
+
+<script>
+// ===== SUPABASE CONFIG - AAPKA URL + KEY YAHAN HAI =====
+const SUPABASE_URL = "https://dvrtmrdydbltjredccbo.supabase.co";
+const SUPABASE_KEY = "sb_publishable_xBjVwAjF7zacpthITMloCQ_OoNndY3z";
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const OWNER = "UQBjOBdY_Ema5JWD8k2s6PKwfno9ddEAc4c9D8_VNQdgh6YQ";
+
+const tonUI = new TON_CONNECT_UI.TonConnectUI({
+  manifestUrl:'https://ton-connect.github.io/demo-dapp-with-react/tonconnect-manifest.json',
+  buttonRootId:'ton-connect'
+});
+
+let tgUser = Telegram.WebApp.initDataUnsafe?.user || null;
+let userId = tgUser ? String(tgUser.id) : 'guest_'+Math.floor(Math.random()*99999);
+let balance = 0;
+let power = 25;
+let currentUser = null;
+
+async function init(){
+  let {data} = await supabaseClient.from('users').select('*').eq('telegram_id', userId).single();
+  if(data){ currentUser=data; balance=data.balance; power=data.power; }
+  else {
+    let {data:newU} = await supabaseClient.from('users').insert([{telegram_id:userId, username:tgUser?.username||'Guest', balance:0, power:25, referral_code:'AQUILA_'+userId}]).select().single();
+    currentUser=newU;
+  }
+  updateUI();
+  document.getElementById('saveStatus').innerText='✅ Supabase Connected - ID: '+userId;
+  document.getElementById('refLink').value='https://t.me/YOUR_BOT?start=AQUILA_'+userId;
+}
+init();
+
+function updateUI(){
+  document.getElementById('bal').innerText=Math.floor(balance);
+  document.getElementById('power').innerText=power;
+  document.getElementById('perTap').innerText=(1+power/100).toFixed(2);
+  document.getElementById('autoRate').innerText=(power/100).toFixed(2);
+}
+setInterval(()=>{ balance+=power/100; updateUI(); },1000);
+setInterval(async()=>{
+  if(currentUser){
+    await supabaseClient.from('users').update({balance:Math.floor(balance), power:power}).eq('telegram_id', userId);
+    document.getElementById('saveStatus').innerText='✅ Saved to Supabase '+new Date().toLocaleTimeString();
+  }
+},10000);
+
+function mineTap(){ balance+=1+power/100; updateUI(); }
+async function boost(ton){
+  if(!tonUI.connected){alert('Wallet Connect karo');return;}
+  let tx={validUntil:Math.floor(Date.now()/1000)+600,messages:[{address:OWNER,amount:(ton*1e9).toString()}]};
+  await tonUI.sendTransaction(tx);
+  power+= ton==0.02?50:150; updateUI();
+  await supabaseClient.from('transactions').insert([{telegram_id:userId, type:'boost', amount_ton:ton, to_wallet:OWNER}]);
+}
+async function buyNFT(price,name){
+  if(!tonUI.connected){alert('Wallet Connect');return;}
+  let tx={validUntil:Math.floor(Date.now()/1000)+600,messages:[{address:OWNER,amount:(price*1e9).toString()}]};
+  await tonUI.sendTransaction(tx);
+  await supabaseClient.from('nfts').insert([{name:name, price:price, owner_id:userId}]);
+  await supabaseClient.from('transactions').insert([{telegram_id:userId, type:'nft_buy', amount_ton:price, to_wallet:OWNER, nft_name:name}]);
+  alert('Bought + Saved to Supabase');
+}
+async function createNFT(){
+  let name=document.getElementById('nftName').value; let price=document.getElementById('nftPrice').value;
+  if(!name||!price){alert('Name Price likho');return;}
+  if(!tonUI.connected){alert('Wallet Connect');return;}
+  let tx={validUntil:Math.floor(Date.now()/1000)+600,messages:[{address:OWNER,amount:"80000000"}]};
+  await tonUI.sendTransaction(tx);
+  await supabaseClient.from('nfts').insert([{name:name, price:parseFloat(price), owner_id:userId, creator_id:userId}]);
+  await supabaseClient.from('transactions').insert([{telegram_id:userId, type:'nft_create', amount_ton:0.08, to_wallet:OWNER, nft_name:name}]);
+  alert('Created + Saved to Supabase');
+}
+function openPage(p){
+  ['home','market','create','ref'].forEach(x=>{
+    document.getElementById('p-'+x).style.display=x==p?'block':'none';
+    document.getElementById('t-'+x).classList.toggle('active',x==p);
+  });
+}
+</script>
+</body>
+</html>
